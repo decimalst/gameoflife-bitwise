@@ -31,7 +31,7 @@ void init()
 }
 
 //Function pre declarations
-int check_cell(int, int);
+int check_cell(int, int, int);
 void display_world();
 void update_draw_world ();
 void memory_cleanup ();
@@ -51,6 +51,7 @@ int main()
 	// 	//printf("%d \n", *(world_calc+1));
 	// 	display_world();
 	// }
+	conway_test();
 
 	memory_cleanup();
 }
@@ -61,24 +62,43 @@ void on_tick()
 	// Every tick we should go through the world and run check_cell on each cell in
 	// world_write to determine the new value of world_calc's cells
 	// Then, we set world_write's values equal to world_calc's new value and display them
-	int cell_check = 0;
 	for (j=0; j<number_of_rows; j++)
 	{
 		for (k=0; k<32; k++){
 			write_cell( j, k, check_cell( j, k, is_world_calc) );
 		}
 	}
+	display_world();
 	is_world_calc = !(is_world_calc);
 }
 
 void write_cell(int x, int y, int live_neighbors)
 {
-	if (live_neighbors == 2 || live_neighbors == 3)
+	uint32_t* which_world;
+	uint32_t* other_world;
+	int was_dead;
+	if(is_world_calc){
+		which_world=world_write;
+		other_world=world_calc;
+	}
+	else{
+		which_world=world_calc;
+		other_world=world_write;
+	}
+	if(*(which_world + y) & ( 1 << x) ){
+		printf("x=%i y=%i live_neighbor %i & was not dead \n",x,y, live_neighbors);
+		was_dead=0;
+	}
+	else{
+		printf("x=%i y=%i live %i & was dead\n",x,y, live_neighbors);
+		was_dead=1;
+	}
+	if ((live_neighbors == 2 && !was_dead )|| (live_neighbors == 3 && was_dead))
 	{
-		*(world_calc + y) = *(world_calc + y) | ( 1 << x);
+		*(which_world + y) = *(other_world + y) | ( 1 << x);
 	}
 	else {
-		*(world_calc + y) = *(world_calc + y) & ( 0xFFFFFFFF - ( 1 << x ) );
+		*(which_world + y) = *(other_world + y) & ( 0xFFFFFFFF - ( 1 << x ) );
 	}
 }
 int check_cell(int x, int y, int which_world)
@@ -98,7 +118,7 @@ int check_cell(int x, int y, int which_world)
 		modified_world=world_write;
 	}
 	// First, check x neighbors to the left and right
-	// Check left
+	// Check left and right
 	switch (cell_x) 
 	{
 		case 31 :
@@ -111,9 +131,10 @@ int check_cell(int x, int y, int which_world)
 			{
 				live_neightbors_count++;
 			}
+			break;
 		case 1 :
 			// X is in the left-most column, so wrap around
-			if( *( modified_world + cell_y ) & ( 1 << cell_x ) )
+			if( *( modified_world + cell_y ) & ( 1 << 1 ) )
 			{
 				live_neightbors_count++;
 			}
@@ -123,17 +144,20 @@ int check_cell(int x, int y, int which_world)
 			{
 				live_neightbors_count++;
 			}
+			break;
 		default :
 			// check for neightbors normally
-			if( *( modified_world + cell_y ) & ( 1 << cell_x ) )
+			if( *( modified_world + cell_y ) & ( 1 << (cell_x + 1) ) )
 			{
 				live_neightbors_count++;
 			}
-			if( *( modified_world + cell_y ) & ( cell_x >> 1 ) )
+			if( *( modified_world + cell_y ) & ( 1 << (cell_x -1) ) )
 			{
 				live_neightbors_count++;
 			}
+			break;
 	}
+	// Check up and down
 	switch (cell_y)
 	{
 		case 31 :
@@ -146,6 +170,7 @@ int check_cell(int x, int y, int which_world)
 			{
 				live_neightbors_count++;
 			}
+			break;
 		case 0 :
 			// Y is in the top-most column, so wrap around
 			if( *( modified_world + 1 ) & ( 1 << cell_x ) )
@@ -158,6 +183,7 @@ int check_cell(int x, int y, int which_world)
 			{
 				live_neightbors_count++;
 			}
+			break;
 		default :
 			// check for neightbors normally
 			if( *( modified_world + (cell_y + 1 )) & ( 1 << cell_x ) )
@@ -168,16 +194,189 @@ int check_cell(int x, int y, int which_world)
 			{
 				live_neightbors_count++;
 			}
+			break;
 	}
-	if (live_neightbors_count < 2)
+	// Check diagonals
+	switch (cell_x)
 	{
-		return_val=0;
+		case 31 :
+			switch (cell_y)
+			{
+				case 31 :
+					if( *( modified_world ) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world ) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 30 ) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 30 ) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				case 0 :
+					if( *( modified_world + 1) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 1) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				default :
+					if( *( modified_world + (cell_y + 1 )) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world +  (cell_y + 1)) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y -1 )) & ( 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *(modified_world + ( cell_y - 1 )) & ( 1 << 30 ) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+
+			}
+		case 0 :
+			switch (cell_y)
+			{
+				case 31:
+					if( *( modified_world ) & ( 1 << 31 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world ) & ( 2 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 30 ) & ( 2 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 30 ) & ( 1 << 31 ) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				case 0 :
+					if( *( modified_world + 1) & ( 1 << 31 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 1) & ( 2 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 2 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 1 << 31 ) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				default :
+					if( *( modified_world + (cell_y + 1)) & ( 1 << 31) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y + 1)) & ( 1 << 1 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y - 1 )) & ( 1 << 31 ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *(modified_world + ( cell_y - 1 )) & ( 1 << 1) )
+					{
+						live_neightbors_count++;
+					}
+					break;
+
+			}
+		default :
+			switch (cell_y)
+			{
+				case 31:
+					if( *( modified_world + 30 ) & ( 1 << (cell_x + 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world ) & ( 1 << (cell_x - 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 30 ) & ( 1 << (cell_x - 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world) & ( 1 << (cell_x + 1) )  )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				case 0:
+					if( *( modified_world + 1 ) & ( 1 << (cell_x + 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 1 << (cell_x - 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 1 ) & ( 1 << (cell_x - 1) ) ) 
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + 31 ) & ( 1 << (cell_x + 1) )  )
+					{
+						live_neightbors_count++;
+					}
+					break;
+				default :
+					if( *( modified_world + (cell_y + 1) ) & ( 1 << (cell_x + 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y - 1) ) & ( 1 << (cell_x - 1) ) )
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y + 1) ) & ( 1 << (cell_x - 1) ) ) 
+					{
+						live_neightbors_count++;
+					}
+					if( *( modified_world + (cell_y - 1) ) & ( 1 << (cell_x + 1) )  )
+					{
+						live_neightbors_count++;
+					}
+					break;
+			}
 	}
-	else
-	{
-		return_val=1;
-	}
-	return return_val;
+	return live_neightbors_count;
 }
 
 void display_world ()
@@ -201,12 +400,37 @@ void memory_cleanup ()
 	free(world_write);
 	free(world_calc);
 }
+void neighbors_test () {
+	for (j=0; j<number_of_rows; j++)
+	{
+		for (k=0; k<32; k++){
+			int derp=check_cell( j, k, is_world_calc);
+			printf("%i", derp);
+		}
+		printf("\n");
+	}
+	printf("-------\n");
+}
 
 void conway_test()
 {
-	write_cell(2, 2, 1);
+
+	write_cell(2, 2, 3);
+	write_cell(3, 2, 3);
+	is_world_calc=!is_world_calc;
+	neighbors_test();
 	display_world();
-	memory_cleanup();
+	
+	//write_cell(3, 3, 2);
+	//display_world();
+	printf("%i \n",check_cell(2, 2, 1));
+	printf("%i \n",check_cell(3, 2, 1));
+	printf("%i \n",check_cell(4, 2, 1));
+	printf("%i \n",check_cell(3, 1, 1));
+	//on_tick();
+	// on_tick();
+	// on_tick();
+	// on_tick();
 }
 
 // This function taken from stackexchange
