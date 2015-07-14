@@ -32,6 +32,7 @@ void init()
 
 //Function pre declarations
 int check_cell(int, int, int);
+void force_write(int, int, int);
 void display_world();
 void update_draw_world ();
 void memory_cleanup ();
@@ -71,34 +72,74 @@ void on_tick()
 	display_world();
 	is_world_calc = !(is_world_calc);
 }
+void conway_test()
+{
+	force_write(1,2,is_world_calc);
+	force_write(2,2,is_world_calc);
+	force_write(3,2,is_world_calc);
+	display_world();
+
+	//write_cell(3, 3, 2);
+	//display_world();
+	printf("%i \n",check_cell(1, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 2, is_world_calc));
+	printf("%i \n",check_cell(3, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 1, is_world_calc));
+	on_tick();
+	printf("%i \n",check_cell(1, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 2, is_world_calc));
+	printf("%i \n",check_cell(3, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 1, is_world_calc));
+	on_tick();
+	printf("%i \n",check_cell(1, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 2, is_world_calc));
+	printf("%i \n",check_cell(3, 2, is_world_calc));
+	printf("%i \n",check_cell(2, 1, is_world_calc));
+	on_tick();
+}
+
+void force_write(int x, int y, int world){
+	uint32_t* which_world;
+	if(world){
+		which_world=world_calc;
+	}
+	else{
+		which_world=world_write;
+	}
+	*(which_world + y) = *(which_world + y) | ( 1 << x);
+}
 
 void write_cell(int x, int y, int live_neighbors)
 {
-	uint32_t* which_world;
+	uint32_t* which_world_now;
 	uint32_t* other_world;
 	int was_dead;
 	if(is_world_calc){
-		which_world=world_write;
-		other_world=world_calc;
-	}
-	else{
-		which_world=world_calc;
+		which_world_now=world_calc;
 		other_world=world_write;
 	}
-	if(*(which_world + y) & ( 1 << x) ){
-		printf("x=%i y=%i live_neighbor %i & was not dead \n",x,y, live_neighbors);
+	else{
+		which_world_now=world_write;
+		other_world=world_calc;
+	}
+	if(*(which_world_now + y) & ( 1 << x) ){
+		//printf("x=%i y=%i live_neighbor %i & was not dead \n",x,y, live_neighbors);
 		was_dead=0;
 	}
 	else{
-		printf("x=%i y=%i live %i & was dead\n",x,y, live_neighbors);
+		//printf("x=%i y=%i live %i & was dead\n",x,y, live_neighbors);
 		was_dead=1;
 	}
-	if ((live_neighbors == 2 && !was_dead )|| (live_neighbors == 3 && was_dead))
+	if (live_neighbors == 3 && was_dead)
 	{
-		*(which_world + y) = *(other_world + y) | ( 1 << x);
+		*(other_world + y) |= (*(which_world_now + y) | ( 1 << x));
 	}
-	else {
-		*(which_world + y) = *(other_world + y) & ( 0xFFFFFFFF - ( 1 << x ) );
+	if (live_neighbors == 2 && !was_dead){
+		*(other_world + y) |= (*(which_world_now + y) | ( 1 << x));
+	}
+	if ( (live_neighbors > 3 ) || (live_neighbors < 2 )) 
+	{
+		*(other_world + y) &= ( 0xFFFFFFFF - ( 1 << x ));
 	}
 }
 int check_cell(int x, int y, int which_world)
@@ -410,27 +451,6 @@ void neighbors_test () {
 		printf("\n");
 	}
 	printf("-------\n");
-}
-
-void conway_test()
-{
-
-	write_cell(2, 2, 3);
-	write_cell(3, 2, 3);
-	is_world_calc=!is_world_calc;
-	neighbors_test();
-	display_world();
-	
-	//write_cell(3, 3, 2);
-	//display_world();
-	printf("%i \n",check_cell(2, 2, 1));
-	printf("%i \n",check_cell(3, 2, 1));
-	printf("%i \n",check_cell(4, 2, 1));
-	printf("%i \n",check_cell(3, 1, 1));
-	//on_tick();
-	// on_tick();
-	// on_tick();
-	// on_tick();
 }
 
 // This function taken from stackexchange
